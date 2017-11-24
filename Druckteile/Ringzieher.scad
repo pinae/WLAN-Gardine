@@ -1,9 +1,9 @@
-seildurchmesser = 3;
+seildurchmesser = 2;
 
 module ringzieher(muttertasche=true) {
     difference() {
         union() {
-            cylinder(d=40, h=7, $fn=64);
+            cylinder(d=40, h=6.8, $fn=64);
             for(i=[-1, 1]) {
                 translate([0, 0, 2.5]) rotate([0, 0, i*45]) cube([50, 10, 5], center=true);
             }

@@ -1,4 +1,4 @@
-seildurchmesser = 3;
+seildurchmesser = 2;
 
 module umlenkrolle() {
     difference() {
