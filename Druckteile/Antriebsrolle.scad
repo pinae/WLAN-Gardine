@@ -8,7 +8,8 @@ module antriebsrolle() {
             cylinder(d=2*r+seildurchmesser, h=2+0.5*seildurchmesser, $fn=64);
             cylinder(d=2*r, h=2-seildurchmesser/2+2.5*seildurchmesser+2, $fn=64);
             translate([0, 0, 2-seildurchmesser/2+2.5*seildurchmesser]) cylinder(d=2*r+seildurchmesser, h=2+0.5*seildurchmesser, $fn=64);
-            translate([0, 0, 2+2.5*seildurchmesser]) cylinder(d=2*r+seildurchmesser+3, h=9, $fn=64);
+            translate([0, 0, 2+2.5*seildurchmesser]) cylinder(d1=2*r+seildurchmesser, d2=2*r+seildurchmesser+3, h=1.5, $fn=64);
+            translate([0, 0, 2+2.5*seildurchmesser+1.5]) cylinder(d=2*r+seildurchmesser+3, h=7.5, $fn=64);
         }
         translate([0, 0, 2+seildurchmesser/2]) rotate_extrude(angle=360, convexity=2, $fn=64) { 
             translate([r+seildurchmesser/2, 0, 0]) circle(d=seildurchmesser, $fn=32);
@@ -21,6 +22,7 @@ module antriebsrolle() {
         translate([4, -5.6/2, 12+1.5]) cube([2.6, 5.6, 10]);
         translate([0, 0, 12]) rotate([0, 90, 0]) cylinder(d=3.2, h=30, $fn=32);
         translate([0, 0, 12]) rotate([0, 90, 0]) cylinder(d=3.2, h=30, $fn=32);
+        translate([14, 0, 12]) rotate([0, 90, 0]) cylinder(d=6.2, h=30, $fn=32);
     }
 }
 antriebsrolle();
