@@ -1,7 +1,7 @@
 seildurchmesser = 2;
 
 module antriebsrolle() {
-    r=26/2+seildurchmesser-sqrt(seildurchmesser*seildurchmesser/2);
+    r=26/2+0.5*seildurchmesser-sqrt(seildurchmesser*seildurchmesser/2);
     difference() {
         union() {
             cylinder(d=2*r+seildurchmesser+3, h=2, $fn=64);
@@ -22,7 +22,7 @@ module antriebsrolle() {
         translate([4, -5.6/2, 12+1.5]) cube([2.6, 5.6, 10]);
         translate([0, 0, 12]) rotate([0, 90, 0]) cylinder(d=3.2, h=30, $fn=32);
         translate([0, 0, 12]) rotate([0, 90, 0]) cylinder(d=3.2, h=30, $fn=32);
-        translate([14, 0, 12]) rotate([0, 90, 0]) cylinder(d=6.2, h=30, $fn=32);
+        translate([10, 0, 12]) rotate([0, 90, 0]) cylinder(d=6.2, h=30, $fn=32);
     }
 }
 antriebsrolle();
