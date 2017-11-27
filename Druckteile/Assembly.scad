@@ -1,11 +1,12 @@
-use <Antriebsrolle.scad>
+use <Antriebsrolle2.scad>
 use <Umlenkrolle.scad>
 use <Umlenkrolle_Halter.scad>
 use <Ringzieher.scad>
 use <Motorhalter.scad>
 use <Nema17.scad>
 
-translate([0, 0, 4.5]) rotate([180, 0, 0]) antriebsrolle();
+//translate([0, 0, 4.5]) rotate([180, 0, 0]) antriebsrolle();
+translate([0, 0, 0.25]) rotate([180, 0, 0]) rope_wheel();
 translate([150, 0, -4]) umlenkrolle();
 translate([70, 0, 0]) rotate([0, -90, 0]) ringzieher(true);
 translate([56, 0, 0]) rotate([0, -90, 180]) ringzieher(false);
