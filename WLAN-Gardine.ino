@@ -3,41 +3,40 @@
 Basecamp iot;
 static const int MaxCommands = 4;
 char *commands[MaxCommands], *shortCommands[MaxCommands] = {
-  "close", 
-  "openPercent", 
-  "configure/spcm", 
-  "configure/maximumPosition"};
+  "close",
+  "openPercent",
+  "configure/spcm",
+  "configure/maximumPosition"
+};
 
-float spcm = 78.0*32;                    // Number of steps per centimeter. Depends on printed parts and the tension of the rope.
+float spcm = 78.0 * 32;                  // Number of steps per centimeter. Depends on printed parts and the tension of the rope.
 float target_p = 0.0;                    // Position of the curtain in percent. 0 means closed 100 means opened.
+bool  driveFinished = false;             // True if driving.
+bool  stopAtEndstop = false;             // True if homing.
 float max_p = 70.0;                      // Maximum position of your curtain. Please measure this correctly!
 const char* curtainName = "WlanGardine"; // Name of this device for MQTT.
 static const int MaxBufferSize = 64;     // Increase this if you set a very long curtainName.
 
 void setup() {
   Serial.begin(115200);
-  //xTaskCreatePinnedToCore(motorTask, "motorTask", 4096, (void*) &target_p, 0, NULL, 0);
-  //Serial.println("Creating the network task...\n");
-  //xTaskCreatePinnedToCore(networkTask, "networkTask", 10000, (void*) &iot, 0, NULL, 0);
-  //Serial.println("Network task created...");
-  networkTask(&iot);
+  initNetwork();
 }
 
-void initializeCommandsList(int MaxCommands) {
-  for(int i=0; i < MaxCommands; i++) {
+void initCommandsList(int MaxCommands) {
+  for (int i = 0; i < MaxCommands; i++) {
     char buf[MaxBufferSize];
     sprintf(buf, "%s/%s", curtainName, shortCommands[i]);
-    commands[i] = (char*) malloc(strlen(buf)+1);
+    commands[i] = (char*) malloc(strlen(buf) + 1);
     strcpy(commands[i], buf);
   }
 }
 
-void networkTask(void* iot_) {
-  //Basecamp iot = *((Basecamp*) iot_);
-  initializeCommandsList(MaxCommands);
+void initNetwork() {
+  initCommandsList(MaxCommands);
   Serial.println("Initialized MQTT command strings...");
   iot.begin();
   Serial.println("Initialized Basecamp...");
+  iot.mqtt.publish("WlanGardine/status", 1, true, "online");
   iot.mqtt.onMessage(onMqttMessage);
   iot.mqtt.onConnect(onMqttConnect);
   iot.web.addInterfaceElement("spcm", "input", "Steps per cm:", "#configform", "spcm");
@@ -64,15 +63,21 @@ void setMaxPos(char* newMaxPos) {
 }
 
 void onMqttConnect(bool sessionPresent) {
-  for(int i=0; i < MaxCommands; i++) {
+  for (int i = 0; i < MaxCommands; i++) {
     iot.mqtt.subscribe(commands[i], 0);
     Serial.printf("MQTT topic subscribed: %s\n", commands[i]);
   }
 }
 
+void homeCurtain() {
+  stopAtEndstop = true;
+  driveFinished  = false;
+  target_p = -110;
+}
+
 int cmdToInt(char* cmd) {
-  for(int i=0; i < MaxCommands; i++) {
-    if(strcmp(cmd, commands[i]) == 0) return i;
+  for (int i = 0; i < MaxCommands; i++) {
+    if (strcmp(cmd, commands[i]) == 0) return i;
   }
 }
 
@@ -80,47 +85,43 @@ void onMqttMessage(
   char* topic, char* payload,
   AsyncMqttClientMessageProperties properties,
   size_t len, size_t index, size_t total) {
-    Serial.printf("MQTT message at %s: %s.\n", topic, payload);
-    switch(cmdToInt(topic)) {
-      case 0:
-        //homeCurtain();
-        break;
-      case 1:
-        target_p = fmax(0, fmin(100, atof(payload)));
-        Serial.printf("Setting target position to %f%%.\n", target_p);
-        break;
-      case 2:
-        setSpcm(payload);
-        break;
-      case 3:
-        setMaxPos(payload);
-        break;
-    }                
+  Serial.printf("MQTT message at %s: %s.\n", topic, payload);
+  switch (cmdToInt(topic)) {
+    case 0:
+      homeCurtain();
+      break;
+    case 1:
+      target_p = fmax(0, fmin(100, atof(payload)));
+      driveFinished = false;
+      Serial.printf("Setting target position to %f%%.\n", target_p);
+      break;
+    case 2:
+      setSpcm(payload);
+      break;
+    case 3:
+      setMaxPos(payload);
+      break;
+  }
 }
 
-void homeCurtain(bool &stopAtEndstop, float &target_p) {
-  stopAtEndstop = true;
-  target_p = -110;
-}
-
-float doSteps(int speedDelay, float currPos, float targetPos, unsigned long &last_flank, 
+float doSteps(int speedDelay, float currPos, float targetPos, unsigned long &last_flank,
               int &stepPin, int &dirPin, int &sleepPin, int &enablePin) {
   digitalWrite(enablePin, LOW);
   digitalWrite(sleepPin, HIGH);
-  digitalWrite(dirPin, currPos + 1/spcm <= targetPos);
-  while(abs(currPos - targetPos) >= 1/spcm) {
-    while(micros() - last_flank < speedDelay) {}
-    if(currPos + 1/spcm <= targetPos) {
+  digitalWrite(dirPin, currPos + 1 / spcm <= targetPos);
+  while (abs(currPos - targetPos) >= 1 / spcm) {
+    while (micros() - last_flank < speedDelay) {}
+    if (currPos + 1 / spcm <= targetPos) {
       digitalWrite(stepPin, HIGH);
       last_flank = micros();
-      currPos += 1/spcm;
+      currPos += 1 / spcm;
     }
-    if(currPos - 1/spcm >= targetPos) {
+    if (currPos - 1 / spcm >= targetPos) {
       digitalWrite(stepPin, HIGH);
       last_flank = micros();
-      currPos -= 1/spcm;
+      currPos -= 1 / spcm;
     }
-    while(micros() - last_flank < speedDelay) {}
+    while (micros() - last_flank < speedDelay) {}
     digitalWrite(stepPin, LOW);
     last_flank = micros();
   }
@@ -134,13 +135,12 @@ void stopMotor(float &v, float &a, int &enablePin, int &sleepPin) {
   a = 0;
 }
 
-void motorTask(/*void* t_p*/) {
+void motorLoop() {
   int stepPin = 16;
   int dirPin = 17;
   int enablePin = 18;
   int sleepPin = 19;
   int endstopPin = 34;
-  bool stopAtEndstop = false;
   //float target_p = *((float*) t_p);
   float dt = 1.0;
   float p = 0.0;
@@ -159,51 +159,56 @@ void motorTask(/*void* t_p*/) {
   digitalWrite(dirPin, LOW);
   digitalWrite(stepPin, LOW);
   stopMotor(v, a, enablePin, sleepPin);
-  homeCurtain(stopAtEndstop, target_p);
+  homeCurtain();
   int i = 0;
-  while(true) {
+  while (true) {
+    //if(i++%10000 == 0) Serial.println(iot.mqtt.connected());
     if(i++%10000 == 0) Serial.printf("tp: %f | p: %f | p_: %f | v: %f | a: %f | dt: %f | vmax: %f\n", target_p/100*max_p, p, p_, v, a, dt, vmax);
     now = micros();
     //if(i%1 == 0) Serial.printf("now: %lu | last_time: %lu\n", now, last_time);
     dt = (float) (now - last_time);
     p_ += 1e-6 * v * dt;
-    vmax = 1 + ((p_ > 0.5*(v-1)*(v-1)/amax) ? 7 : 0);
+    vmax = 1 + ((p_ > 0.5 * (v - 1) * (v - 1) / amax) ? 7 : 0);
     a = 0;
-    float tp = target_p/100*max_p;
-    if(((abs(v) < vmax) && (abs(tp - p_) > 0.9 * v * v / amax))) {
+    float tp = target_p / 100 * max_p;
+    if (((abs(v) < vmax) && (abs(tp - p_) > 0.9 * v * v / amax))) {
       a = ((tp > p_) ? 1 : -1) * amax;
     }
-    if(v < 0) {
-      if((abs(v) > vmax) || 
-         (p_-tp < 0.5 * v * v / amax) || 
-         (tp > p_)) {
+    if (v < 0) {
+      if ((abs(v) > vmax) ||
+          (p_ - tp < 0.5 * v * v / amax) ||
+          (tp > p_)) {
         a = amax;
       }
     } else {
-      if((abs(v) > vmax) || 
-         (tp-p_ < 0.5 * v * v / amax) || 
-         (tp < p_)) {
+      if ((abs(v) > vmax) ||
+          (tp - p_ < 0.5 * v * v / amax) ||
+          (tp < p_)) {
         a = -amax;
       }
     }
     v += 1e-6 * a * dt;
     //while(micros() - last_time < 16) {}
-    if(stopAtEndstop && digitalRead(endstopPin)) { // Endstop triggered.
+    if (stopAtEndstop && digitalRead(endstopPin)) { // Endstop triggered.
       stopMotor(v, a, enablePin, sleepPin);
       p = 0;
       p_ = 0;
       target_p = 0;
       stopAtEndstop = false;
+      driveFinished = true;
       char msgTopic[MaxBufferSize];
       sprintf(msgTopic, "%s/status", curtainName);
       iot.mqtt.publish(msgTopic, 1, true, "closed");
     }
-    if(abs(target_p/100*max_p - p) <= 1.1/spcm) {  // We are at the target position. Stop the motor.
+    if (abs(target_p / 100 * max_p - p) <= 1.1 / spcm) { // We are at the target position. Stop the motor.
       stopMotor(v, a, enablePin, sleepPin);
-      char msgBody[MaxBufferSize], msgTopic[MaxBufferSize];
-      sprintf(msgTopic, "%s/status", curtainName);
-      sprintf(msgBody, "open at %d%%", target_p);
-      iot.mqtt.publish(msgTopic, 1, true, msgBody);
+      if(!driveFinished) {
+        driveFinished = true;
+        char msgBody[MaxBufferSize], msgTopic[MaxBufferSize];
+        sprintf(msgTopic, "%s/status", curtainName);
+        sprintf(msgBody, "open at %d%%", target_p);
+        iot.mqtt.publish(msgTopic, 1, true, msgBody);
+      }
     } else {
       p = doSteps(8, p, p_, last_flank, stepPin, dirPin, sleepPin, enablePin);
     }
@@ -213,5 +218,5 @@ void motorTask(/*void* t_p*/) {
 }
 
 void loop() {
-  motorTask(/*&target_p*/);  
+  motorLoop();
 }
